@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-Point POS — Complete Cloud POS</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#182230;background:#f3f6fb}
+*{box-sizing:border-box}body{margin:0}header{background:#12213b;color:#fff;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.receipt-overlay{position:fixed;inset:0;background:#0f172acc;display:flex;align-items:center;justify-content:center;padding:14px;z-index:9999}.receipt-panel{background:#fff;border-radius:16px;padding:18px;width:min(620px,100%);max-height:90vh;overflow:auto;box-shadow:0 20px 60px #0004}.receipt-panel h2{margin-bottom:5px}.receipt-panel table{min-width:0}.receipt-panel th,.receipt-panel td{white-space:normal}.receipt-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0;font-size:13px}.receipt-meta div{background:#f4f7fb;padding:9px;border-radius:8px}.receipt-total{font-size:18px;font-weight:800;text-align:right;margin-top:14px}.change-panel{margin-top:12px;padding:14px;border-radius:12px;background:#eef5ff;border:1px solid #c9dcff}.change-value{font-size:25px;font-weight:850;color:#155eef}.change-panel.underpaid{background:#fff1f2;border-color:#fecdd3}.change-panel.underpaid .change-value{color:#be123c}h1{font-size:20px;margin:0}header p{margin:3px 0 0;color:#c8d6ef;font-size:13px}
+main{max-width:1000px;margin:0 auto;padding:18px}.card{background:white;border:1px solid #dce4ef;border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 5px 18px #15294a0b}
+h2{font-size:18px;margin:0 0 12px}.muted{color:#65748b;font-size:13px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:grid;gap:5px}.field label{font-size:13px;font-weight:650;color:#475569}.field input,.field select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#182230;font:inherit}
+button{border:0;border-radius:9px;padding:11px 14px;background:#155eef;color:white;font:inherit;font-weight:650;cursor:pointer}button.secondary{background:#eaf0f8;color:#26364f}button:disabled{opacity:.55;cursor:wait}.product-photo{width:52px;height:52px;border-radius:10px;object-fit:cover;background:#eef2f7;border:1px solid #dbe3ee}.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:12px}.product-card{border:1px solid #dce4ef;border-radius:12px;background:#fff;padding:9px;text-align:center;cursor:pointer}.product-card:hover{border-color:#155eef;box-shadow:0 0 0 2px #155eef20}.category-filters{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 8px}.category-filters button{padding:8px 11px;font-size:12px}.category-filters button.active{background:#12213b;color:#fff}.pc-add{display:block;width:100%;padding:7px 5px;margin-top:8px;font-size:11px}.product-card img{width:76px;height:76px;object-fit:cover;border-radius:10px;background:#eef2f7}.product-card .pc-name{font-size:12px;font-weight:700;margin-top:6px;line-height:1.2}.product-card .pc-stock{font-size:11px;color:#65748b;margin-top:3px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.notice{padding:12px;border-radius:10px;background:#eef5ff;color:#29456f;font-size:13px;margin-bottom:14px}.status{padding:12px;border-radius:10px;margin:12px 0;white-space:pre-wrap;font-size:13px}.status.ok{background:#e8f8ef;color:#166534}.status.err{background:#fff0f0;color:#991b1b}.status.info{background:#eef5ff;color:#29456f}.hidden{display:none!important}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:620px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e5eaf1;font-size:13px;white-space:nowrap}th{background:#f7f9fc;color:#526176}.badge{display:inline-block;background:#e8f8ef;color:#166534;border-radius:99px;padding:4px 8px;font-size:12px;font-weight:700}.topline{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.small{font-size:12px}@media(max-width:600px){main{padding:12px}.grid{grid-template-columns:1fr}header{padding:14px}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>K-Point POS</h1><p>Cloud POS • Products • Stock • Sales • Expenses • Profit</p></div>
+  <div class="actions" style="margin:0"><span id="roleBadge" class="badge hidden"></span><button id="signOutBtn" class="secondary hidden" type="button">Sign out</button></div>
+</header>
+<main>
+  <div class="notice"><strong>K-Point POS is connected to the cloud.</strong> Use the active branch selector for Simoonga or Zimba. Sales must be fully paid; customer credit is not used. Use a Bluetooth barcode scanner in the scanner input. Keep internet connected while recording transactions.</div>
+  <div id="status" class="status info">Enter the email and password for the Supabase account you already created.</div>
+  <section id="loginCard" class="card">
+    <h2>Sign in to K-Point POS</h2>
+    <form id="loginForm">
+      <div class="grid">
+        <div class="field"><label for="email">Account email</label><input id="email" type="email" autocomplete="username" required></div>
+        <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+      </div>
+      <div class="actions"><button id="loginBtn" type="submit">Sign in</button></div>
+    </form>
+    <p class="muted">Your password is sent to Supabase authentication, not saved in this HTML file. Never enter your Supabase secret/service-role key here.</p>
+  </section>
+
+  <section id="productSection" class="hidden">
+    <div class="card">
+      <div class="topline"><h2>Business connection</h2><span id="businessBadge" class="badge"></span></div>
+      <p class="muted">Choose a branch to view its products and stock. Owners can switch between assigned branches; employees only see their assigned branch. Products are saved in the cloud database.</p>
+      <div class="field" style="max-width:420px"><label for="branchPick">Active branch</label><select id="branchPick" required><option value="">Loading branches…</option></select></div>
+    </div>
+    <div class="card" id="addProductCard">
+      <h2>Add a product</h2>
+      <form id="productForm">
+        <div class="grid">
+          <div class="field"><label for="productBranch">Branch *</label><select id="productBranch" required><option value="">Choose a branch…</option></select></div>
+          <div class="field"><label for="name">Product name *</label><input id="name" required maxlength="120" placeholder="e.g. Sunder Fast Charger"></div>
+          <div class="field"><label for="category">Category</label><input id="category" maxlength="80" placeholder="e.g. Chargers"></div>
+          <div class="field"><label for="productImage">Product photo (optional)</label><input id="productImage" type="file" accept="image/jpeg,image/png,image/webp,image/*"><span class="muted">Use a clear photo. JPG/PNG/WebP, max 2 MB.</span></div>
+          <div class="field"><label for="barcode">Barcode (optional)</label><input id="barcode" maxlength="120" placeholder="Scan or type barcode"></div>
+          <div class="field"><label for="productCode">Your product code (optional)</label><input id="productCode" maxlength="80" placeholder="e.g. CHG-001"></div>
+          <div class="field"><label for="quantity">Opening stock quantity *</label><input id="quantity" type="number" min="0" step="1" value="0" required></div>
+          <div class="field"><label for="retailPrice">Retail selling price (K) *</label><input id="retailPrice" type="number" min="0" step="0.01" required></div>
+          <div class="field"><label for="wholesalePrice">Wholesale selling price (K) *</label><input id="wholesalePrice" type="number" min="0" step="0.01" required></div>
+          <div class="field" id="buyingPriceField"><label for="buyingPrice">Buying price per unit (K) — owner only *</label><input id="buyingPrice" type="number" min="0" step="0.01" placeholder="Supplier cost"></div>
+        </div>
+        <div class="actions"><button id="saveProductBtn" type="submit">Save product</button><button id="cancelEditBtn" type="button" class="secondary">Cancel edit</button><button id="refreshBtn" type="button" class="secondary">Refresh products</button></div>
+      </form>
+      <p class="muted">Add a clear product photo when creating a product. Employees will see the photos in the sales product picker, making products faster to identify. Use Stock Receiving below for purchases so shipping and other import costs are recorded and allocated to stock.</p>
+    </div>
+    <div class="card">
+      <div class="topline"><h2>Products in the active branch</h2><span id="countBadge" class="badge">0 products</span></div>
+      <div class="table-wrap" id="productTable"><p class="muted">Sign in to load products.</p></div>
+    </div>
+    <section class="card" id="stockReceivingCard">
+      <h2>Stock Receiving</h2>
+      <p class="muted">Record new stock for the active branch. Purchase, shipping and other costs are combined to calculate landed cost per unit. This calls the secure kpoint_receive_stock database function; the function must already exist in Supabase.</p>
+      <form id="stockReceivingForm">
+        <div class="grid">
+          <div class="field"><label for="receiveProduct">Product *</label><select id="receiveProduct" required><option value="">Load products first</option></select></div>
+          <div class="field"><label for="receiveBranch">Receiving branch</label><input id="receiveBranch" readonly value="Choose active branch"></div>
+          <div class="field"><label for="receiveQty">Quantity received *</label><input id="receiveQty" type="number" min="1" step="1" required placeholder="e.g. 100"></div>
+          <div class="field"><label for="receivePurchaseTotal">Total purchase cost (K) *</label><input id="receivePurchaseTotal" type="number" min="0" step="0.01" required placeholder="Cost of all units"></div>
+          <div class="field"><label for="receiveShippingTotal">Shipping cost (K)</label><input id="receiveShippingTotal" type="number" min="0" step="0.01" value="0" required></div>
+          <div class="field"><label for="receiveOtherCost">Other costs (K)</label><input id="receiveOtherCost" type="number" min="0" step="0.01" value="0" required></div>
+          <div class="field"><label for="receiveReference">Supplier / shipment reference</label><input id="receiveReference" maxlength="160" placeholder="e.g. FYCargo shipment 001"></div>
+        </div>
+        <div class="notice" style="margin-top:12px;margin-bottom:0">Estimated landed cost: <strong id="receiveLandedTotal">K0.00</strong> · Cost per received unit: <strong id="receiveLandedUnit">K0.00</strong></div>
+        <div class="actions"><button id="receiveStockBtn" type="submit">Record stock received</button><button id="resetReceiveBtn" type="button" class="secondary">Clear form</button></div>
+      </form>
+      <p class="muted">Submitting changes the real database stock and buying cost. Do not submit a receipt unless the purchase actually happened.</p>
+    </section>
+    <section class="card hidden" id="ownerExpensesCard">
+      <h2>Business expenses</h2>
+      <p class="muted">Record operating expenses such as rent, transport, packaging, utilities and bank/mobile-money charges. These are kept separate from stock purchase/import costs.</p>
+      <form id="expenseForm">
+        <div class="grid">
+          <div class="field"><label for="expenseDescription">Expense description *</label><input id="expenseDescription" required maxlength="160" placeholder="e.g. Shop rent"></div>
+          <div class="field"><label for="expenseCategory">Category *</label><select id="expenseCategory"><option>General</option><option>Rent</option><option>Transport</option><option>Packaging</option><option>Utilities</option><option>Marketing</option><option>Bank/mobile-money charges</option><option>Repairs</option><option>Other</option></select></div>
+          <div class="field"><label for="expenseAmount">Amount (K) *</label><input id="expenseAmount" type="number" min="0.01" step="0.01" required></div>
+          <div class="field"><label for="expenseDate">Expense date *</label><input id="expenseDate" type="date" required></div>
+          <div class="field"><label for="expenseNotes">Notes (optional)</label><input id="expenseNotes" maxlength="300" placeholder="Optional details"></div>
+        </div>
+        <div class="actions"><button id="saveExpenseBtn" type="submit">Save expense</button><button id="refreshOwnerBtn" type="button" class="secondary">Refresh reports</button></div>
+      </form>
+      <div class="table-wrap" id="expenseTable"><p class="muted">Expenses will appear here.</p></div>
+    </section>
+    <section class="card hidden" id="ownerReportsCard">
+      <div class="topline"><h2>Branch & business reports</h2><div class="actions" style="margin:0"><button type="button" class="secondary" id="refreshReportBtn">Refresh report</button><button type="button" class="secondary" id="exportReportBtn">Export combined CSV</button></div></div>
+      <p class="muted">Simoonga and Zimba are reported separately, with a combined business total. Use Refresh report to reload the latest data. Owner-only Delete sale safely voids a sale, restores its stock, and removes it from the active report. The database keeps the voided record for audit history.</p>
+      <div id="reportSummary" class="grid"></div>
+      <h3 style="margin:20px 0 8px">Simoonga report</h3>
+      <div class="table-wrap" id="simoongaReportTable"><p class="muted">Load the report to view sales.</p></div>
+      <h3 style="margin:20px 0 8px">Zimba report</h3>
+      <div class="table-wrap" id="zimbaReportTable"><p class="muted">Load the report to view sales.</p></div>
+      <h3 style="margin:20px 0 8px">Combined business report</h3>
+      <div class="table-wrap" id="salesReportTable"><p class="muted">Load the report to view all sales.</p></div>
+    </section>
+    <section class="card hidden" id="mySalesCard">
+      <div class="topline"><h2>My Sales & Receipts</h2><button type="button" id="refreshMySalesBtn" class="secondary">Refresh</button></div>
+      <p class="muted">View receipts for sales you personally recorded. Use these records to help answer customer questions. You cannot edit or delete a completed sale here.</p>
+      <div class="field"><label for="mySalesSearch">Search by receipt number or product</label><input id="mySalesSearch" placeholder="Type receipt number or product name"></div>
+      <div class="table-wrap" id="mySalesTable" style="margin-top:10px"><p class="muted">Your sales will appear here.</p></div>
+    </section>
+    <section class="card">
+      <h2>Checkout — Secure paid checkout</h2>
+      <p class="muted">Choose products manually or scan with a Bluetooth barcode scanner. The Supabase checkout function records the paid sale and deducts stock in one database transaction.</p>
+      <div class="grid">
+        <div class="field"><label for="checkoutSearch">Find product by name, code or barcode</label><input id="checkoutSearch" placeholder="Type a name, code or barcode"></div>
+        <div class="field"><label for="scanInput">Barcode scanner input</label><input id="scanInput" placeholder="Tap here, then scan with scanner"></div>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div class="field"><label for="checkoutCategory">Filter by category</label><select id="checkoutCategory"><option value="all">All categories</option></select></div>
+      </div>
+      <div id="categoryButtons" class="category-filters" aria-label="Product categories"></div>
+      <div id="productGrid" class="product-grid" aria-label="Product photos"></div>
+      <div class="field" style="margin-top:12px"><label for="productPick">Select product</label><select id="productPick"><option value="">Load products first</option></select></div>
+      <div class="grid" style="margin-top:12px">
+        <div class="field"><label for="saleQty">Quantity</label><input id="saleQty" type="number" min="1" step="1" value="1"></div>
+        <div class="field"><label for="saleType">Sale type</label><select id="saleType"><option value="retail">Retail</option><option value="wholesale">Wholesale</option></select></div>
+      </div>
+      <div class="actions"><button id="addCartBtn" type="button">Add to cart</button><button id="clearCartBtn" type="button" class="secondary">Clear cart</button></div>
+      <div id="cartTable" class="table-wrap" style="margin-top:12px"><p class="muted">Cart is empty.</p></div>
+      <div class="topline" style="margin-top:12px"><strong>Cart total: <span id="cartTotal">K0.00</span></strong><span id="cartHint" class="muted">No items added</span></div>
+      <div class="grid" style="margin-top:12px">
+        <div class="field"><label for="paymentMethod">Payment method (fully paid sales only)</label><select id="paymentMethod"><option value="cash">Cash</option><option value="airtel_money">Airtel Money</option><option value="mtn_momo">MTN MoMo</option><option value="bank_transfer">Bank transfer</option><option value="other">Other</option></select></div>
+      </div>
+      <div class="field" id="cashReceivedField" style="margin-top:12px"><label for="cashReceived">Cash received from customer (K)</label><input id="cashReceived" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Enter the cash handed over"></div>
+      <div id="changePanel" class="change-panel"><div class="muted" id="changeLabel">Change to give customer</div><div class="change-value" id="changeValue">K0.00</div><div class="muted" id="changeHelp">Enter the cash received to calculate change.</div></div>
+      <div class="actions"><button id="completeSaleBtn" type="button">Record paid sale</button></div>
+      <p class="muted">Checkout records only fully paid sales (no customer credit). For cash, enter the exact cash handed over; K-Point calculates and stores the change. For mobile money and bank transfer, the amount received field is hidden. The secure Supabase checkout function validates the branch, records the sale and payment, and deducts stock in one database transaction. It requires the checkout SQL setup to have been installed successfully.</p>
+    </section>
+  </section>
+</main>
+<div id="receiptModal" class="receipt-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="receiptTitle">
+  <div class="receipt-panel">
+    <div class="topline"><div><h2 id="receiptTitle">Receipt details</h2><p id="receiptSubtitle" class="muted">Items sold on this receipt</p></div><button type="button" id="closeReceiptBtn" class="secondary">Close</button></div>
+    <div id="receiptMeta" class="receipt-meta"></div>
+    <div id="receiptItems"><p class="muted">Loading items…</p></div>
+    <div id="receiptTotal" class="receipt-total"></div>
+    <div class="actions"><button type="button" id="printReceiptBtn">Print receipt</button></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://dqnmtyqrxnjfxiztbaqy.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fV8N_WpvOqbUlnjBDdMlCw_PeLJsbmV";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const KPOINT_BUSINESS_ID = "65442055-ffbf-4fe1-afb5-f3f79b9d3de1";
+let currentUser = null, businessId = null, businessName = "K-Point POS", isOwner = false, productRows = [], productChannel = null, shopRows = [], selectedShopId = null;
+const $ = id => document.getElementById(id);
+function setStatus(message, type="info"){ $("status").textContent=message; $("status").className="status "+type; }
+function money(v){return "K"+Number(v||0).toLocaleString("en-ZM",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function errText(e){return e?.message||e?.error_description||String(e||"Unknown error");}
+async function resolveBusiness(){
+  const {data: memberships, error} = await db.from("memberships").select("business_id, role").eq("user_id",currentUser.id);
+  if(error) throw new Error("Could not read your business membership: "+errText(error));
+  if(!memberships?.length) throw new Error("Your signed-in account has no business membership. Ask the project owner to check the K-Point POS membership row.");
+  const membership = memberships.find(m=>m.business_id===KPOINT_BUSINESS_ID) || memberships.find(m=>String(m.role||"").toLowerCase()==="owner") || memberships[0];
+  businessId=membership.business_id;
+  isOwner=String(membership.role||"").toLowerCase()==="owner";
+  const {data: biz, error: bizErr}=await db.from("businesses").select("id,name,currency").eq("id",businessId).maybeSingle();
+  if(bizErr) throw new Error("Membership found, but business details could not be loaded: "+errText(bizErr));
+  if(biz){businessName=biz.name||businessName;$("businessBadge").textContent=businessName+" • "+(biz.currency||"ZMW");}
+  else $("businessBadge").textContent=businessName;
+  $("roleBadge").textContent=isOwner?"OWNER ACCESS":"STAFF ACCESS";
+  $("roleBadge").classList.remove("hidden");
+  $("buyingPriceField").classList.toggle("hidden",!isOwner);
+  $("buyingPrice").required=isOwner;
+  $("addProductCard").classList.toggle("hidden",!isOwner);
+  $("stockReceivingCard").classList.toggle("hidden",!isOwner);
+  $("ownerExpensesCard").classList.toggle("hidden",!isOwner);
+  $("ownerReportsCard").classList.toggle("hidden",!isOwner);
+  $("mySalesCard").classList.toggle("hidden",isOwner);
+  if(isOwner){const d=new Date();$("expenseDate").value=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+  const {data: accessibleShops, error: shopsError} = await db.rpc("kpoint_accessible_shops", {p_business_id: businessId});
+  if(shopsError) throw new Error("Could not load your branch access. Run the companion branch-access SQL in Supabase first: "+errText(shopsError));
+  shopRows = accessibleShops || [];
+  if(!shopRows.length) throw new Error("No branch is assigned to this account. Ask the owner to assign this account to Simoonga or Zimba.");
+  selectedShopId = shopRows[0].shop_id;
+  const options = shopRows.map(sh=>'<option value="'+esc(sh.shop_id)+'">'+esc(sh.shop_name)+'</option>').join("");
+  $("branchPick").innerHTML = options;
+  $("productBranch").innerHTML = '<option value="">Choose a branch…</option>'+options;
+  $("branchPick").value = selectedShopId;
+  $("productBranch").value = selectedShopId;
+  $("branchPick").disabled = shopRows.length < 2;
+  $("productBranch").disabled = shopRows.length < 2;
+}
+async function loadProducts(){
+  if(!selectedShopId) throw new Error("Choose a branch before loading products.");
+  const {data,error}=await db.from("products").select("id,business_id,shop_id,name,barcode,product_code,category,quantity,retail_price,wholesale_price,image_url,created_at").eq("business_id",businessId).eq("shop_id",selectedShopId).order("category",{ascending:true,nullsFirst:false}).order("name",{ascending:true});
+  if(error) throw new Error("Could not load products: "+errText(error));
+  productRows=data||[];
+  renderProducts();
+}
+function startProductRealtime(){
+ if(productChannel){db.removeChannel(productChannel);productChannel=null;}
+ productChannel=db.channel("kpoint-products-"+businessId)
+  .on("postgres_changes",{event:"*",schema:"public",table:"products",filter:"business_id=eq."+businessId},async()=>{
+   try{await loadProducts();setStatus("Cloud stock updated from another device.","ok");}catch(e){setStatus("Live update received, but refresh failed: "+errText(e),"err");}
+  }).subscribe();
+}
+function renderProducts(){
+  $("countBadge").textContent=productRows.length+" product"+(productRows.length===1?"":"s");
+  if(!productRows.length){$("productTable").innerHTML='<p class="muted">No products yet. Add your first product using the form above.</p>';refreshPicker();return;}
+  const actionHeading=isOwner?'<th>Action</th>':'';
+  $("productTable").innerHTML='<table><thead><tr><th>Photo</th><th>Product</th><th>Category</th><th>Barcode / Code</th><th>Stock</th><th>Retail</th><th>Wholesale</th>'+actionHeading+'</tr></thead><tbody>'+productRows.map(p=>'<tr><td>'+(p.image_url?'<img class="product-photo" src="'+esc(p.image_url)+'" alt="'+esc(p.name)+'">':'<div class="product-photo" aria-label="No product photo"></div>')+'</td><td><strong>'+esc(p.name)+'</strong></td><td>'+esc(p.category||"—")+'</td><td>'+esc(p.barcode||p.product_code||"—")+'</td><td>'+Number(p.quantity||0)+'</td><td>'+money(p.retail_price)+'</td><td>'+money(p.wholesale_price)+'</td>'+(isOwner?'<td><button type="button" class="edit-product-btn" data-product-id="'+esc(p.id)+'" style="padding:7px 10px;margin-right:6px">Edit</button><button type="button" class="delete-product-btn" data-product-id="'+esc(p.id)+'" style="background:#b91c1c;padding:7px 10px">Delete</button></td>':'')+'</tr>').join('')+'</tbody></table>';
+  refreshPicker();
+}
+
+let editingProductId = null;
+
+function resetProductEditor(){
+  editingProductId = null;
+  $("saveProductBtn").textContent = "Save product";
+  $("productForm").querySelector("h2")?.remove();
+  $("addProductCard").querySelector("h2").textContent = "Add a product";
+  $("productForm").reset();
+  $("quantity").value = "0";
+  $("productImage").value = "";
+  $("productBranch").value = selectedShopId || "";
+}
+
+$("productTable").addEventListener("click",async function(event){
+  const button = event.target.closest(".edit-product-btn");
+  if(!button) return;
+
+  if(!currentUser || !isOwner){
+    setStatus("Only the business owner can edit products.","err");
+    return;
+  }
+
+  const product = productRows.find(row => row.id === button.dataset.productId);
+  if(!product) {
+    setStatus("Product not found. Refresh the product list.","err");
+    return;
+  }
+
+  editingProductId = product.id;
+  $("addProductCard").querySelector("h2").textContent = "Edit product";
+  $("saveProductBtn").textContent = "Update product";
+
+  $("productBranch").value = product.shop_id || selectedShopId;
+  $("name").value = product.name || "";
+  $("category").value = product.category || "";
+  $("barcode").value = product.barcode || "";
+  $("productCode").value = product.product_code || "";
+  $("quantity").value = Number(product.quantity || 0);
+  $("retailPrice").value = product.retail_price ?? "";
+  $("wholesalePrice").value = product.wholesale_price ?? "";
+  $("productImage").value = "";
+
+  try{
+    const {data:costRow,error:costError} = await db
+      .from("product_costs")
+      .select("buying_price")
+      .eq("product_id",product.id)
+      .eq("business_id",businessId)
+      .maybeSingle();
+
+    if(!costError && costRow) $("buyingPrice").value = costRow.buying_price ?? "";
+    else $("buyingPrice").value = "";
+  }catch(e){
+    $("buyingPrice").value = "";
+  }
+
+  $("addProductCard").scrollIntoView({behavior:"smooth",block:"start"});
+  setStatus('Editing "'+product.name+'". Make your changes, then tap Update product.',"info");
+});
+
+$("cancelEditBtn").addEventListener("click",()=>{
+  editingProductId = null;
+  $("addProductCard").querySelector("h2").textContent = "Add a product";
+  $("saveProductBtn").textContent = "Save product";
+  $("productForm").reset();
+  $("quantity").value = "0";
+  $("productImage").value = "";
+  $("productBranch").value = selectedShopId || "";
+  setStatus("Product edit cancelled.","info");
+});
+
+// Owner-only deletion. Products already used in sales are protected to preserve reports.
+$("productTable").addEventListener("click",async function(event){
+  const button=event.target.closest(".delete-product-btn");
+  if(!button)return;
+  if(!currentUser||!isOwner){setStatus("Only the business owner can delete products.","err");return;}
+  const product=productRows.find(row=>row.id===button.dataset.productId);
+  if(!product||product.business_id!==businessId||product.shop_id!==selectedShopId){setStatus("Product not found in the active branch. Refresh the product list.","err");return;}
+  if(!confirm('Delete "'+product.name+'" from '+(shopRows.find(sh=>sh.shop_id===selectedShopId)?.shop_name||"this branch")+'? This cannot be undone. Products with sales history cannot be deleted.'))return;
+  button.disabled=true;
+  setStatus("Checking sales history before deleting product…","info");
+  try{
+    const {data:usedInSales,error:historyError}=await db.from("sale_items").select("product_id").eq("product_id",product.id).limit(1);
+    if(historyError)throw new Error("Could not verify sales history, so nothing was deleted: "+errText(historyError));
+    if(usedInSales&&usedInSales.length){throw new Error("This product has sales history and cannot be deleted. It was kept to protect your reports.");}
+    const {data,error}=await db.from("products").delete().eq("id",product.id).eq("business_id",businessId).eq("shop_id",selectedShopId).select("id");
+    if(error)throw new Error("Supabase refused to delete this product: "+errText(error)+". Check the owner DELETE policy and any stock/cost records linked to it.");
+    if(!data||!data.length)throw new Error("No product was deleted. Check that you are signed in as the business owner and the Supabase DELETE policy allows it.");
+    await deleteProductImage(product);
+    if(Array.isArray(cart)){cart=cart.filter(item=>item.id!==product.id);if(typeof renderCart==="function")renderCart();}
+    await loadProducts();
+    setStatus('Product "'+product.name+'" was deleted from the cloud database.',"ok");
+  }catch(error){setStatus(errText(error),"err");button.disabled=false;}
+});
+let cachedSalesReport=[];
+let cachedMySales=[];
+async function loadOwnerData(){
+  if(!isOwner||!businessId)return;
+  const [expensesResult, reportResult]=await Promise.all([
+    db.from("business_expenses").select("id,description,category,amount,expense_date,notes,created_at").eq("business_id",businessId).order("expense_date",{ascending:false}).limit(100),
+    db.rpc("kpoint_owner_branch_sales_report",{p_business_id:businessId,p_limit:5000})
+  ]);
+  if(expensesResult.error) throw new Error("Could not load expenses: "+errText(expensesResult.error));
+  const expenses=expensesResult.data||[];
+  const expenseTotal=expenses.reduce((sum,x)=>sum+Number(x.amount||0),0);
+  $("expenseTable").innerHTML=expenses.length?'<table><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Notes</th></tr></thead><tbody>'+expenses.map(x=>'<tr><td>'+esc(x.expense_date||"")+'</td><td>'+esc(x.description)+'</td><td>'+esc(x.category||"General")+'</td><td>'+money(x.amount)+'</td><td>'+esc(x.notes||"—")+'</td></tr>').join("")+'</tbody></table>':'<p class="muted">No business expenses recorded yet.</p>';
+  if(reportResult.error) throw new Error("Expenses loaded, but branch sales report could not load: "+errText(reportResult.error)+". Run the Branch Reports SQL setup first.");
+  cachedSalesReport=reportResult.data||[];
+  const totalFor=rows=>({sales:rows.reduce((n,x)=>n+Number(x.sale_total||0),0),cost:rows.reduce((n,x)=>n+Number(x.estimated_cost||0),0),profit:rows.reduce((n,x)=>n+Number(x.estimated_profit||0),0)});
+  const branchRows=shopRows.map(sh=>({shop:sh,rows:cachedSalesReport.filter(x=>x.shop_id===sh.shop_id)}));
+  const all=totalFor(cachedSalesReport);
+  const card=(title,totals,subtitle,profitLabel="Gross profit")=>'<div class="notice" style="margin:0"><strong>'+esc(title)+'</strong><br>Sales: '+money(totals.sales)+'<br>Estimated stock cost: '+money(totals.cost)+'<br><strong>'+esc(profitLabel)+': '+money(totals.profit)+'</strong>'+(subtitle?'<br><span class="small">'+esc(subtitle)+'</span>':'')+'</div>';
+  const branchCards=branchRows.map(b=>({name:b.shop.shop_name,totals:totalFor(b.rows)}));
+  $("reportSummary").innerHTML=card("Combined business",all,"Up to 5,000 latest sales")+branchCards.map(b=>card(b.name,b.totals,"Gross profit before shared expenses")).join("")+card("Combined after recorded expenses",{sales:all.sales,cost:all.cost,profit:all.profit-expenseTotal},"Less the latest 100 recorded business expenses: "+money(expenseTotal),"Profit after expenses");
+  const renderTable=rows=>rows.length?'<table><thead><tr><th>Date</th><th>Branch</th><th>Receipt</th><th>Status</th><th>Sale total</th><th>Stock cost</th><th>Gross profit</th><th>Receipt items</th>'+(isOwner?'<th>Action</th>':'')+'</tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.sale_date?new Date(x.sale_date).toLocaleString():'')+'</td><td>'+esc(x.shop_name||'Branch not recorded')+'</td><td>'+esc(x.receipt_number||x.sale_id||'')+'</td><td>'+esc(x.status||'completed')+'</td><td>'+money(x.sale_total)+'</td><td>'+money(x.estimated_cost)+'</td><td>'+money(x.estimated_profit)+'</td><td><button type="button" class="view-receipt-btn secondary" data-sale-id="'+esc(x.sale_id||'')+'" style="padding:7px 10px" '+(!x.sale_id?'disabled':'')+'>View items</button></td>'+(isOwner?'<td><button type="button" class="void-sale-btn" data-sale-id="'+esc(x.sale_id||'')+'" data-receipt="'+esc(x.receipt_number||x.sale_id||'')+'" style="background:#b91c1c;padding:7px 10px" '+(!x.sale_id?'disabled':'')+'>Delete sale</button></td>':'')+'</tr>').join('')+'</tbody></table>':'<p class="muted">No sales recorded for this report yet.</p>';
+  const simoonga=branchRows.find(b=>String(b.shop.shop_name).toLowerCase()==="simoonga");
+  const zimba=branchRows.find(b=>String(b.shop.shop_name).toLowerCase()==="zimba");
+  $("simoongaReportTable").innerHTML=renderTable(simoonga?simoonga.rows:[]);
+  $("zimbaReportTable").innerHTML=renderTable(zimba?zimba.rows:[]);
+  $("salesReportTable").innerHTML=renderTable(cachedSalesReport);
+}
+function getCartTotal(){return Math.round((cart||[]).reduce((sum,item)=>sum+Number(item.price||0)*Number(item.quantity||0),0)*100)/100;}
+function updateCashCalculator(){
+ const isCash=$("paymentMethod").value==="cash";
+ $("cashReceivedField").classList.toggle("hidden",!isCash);
+ $("changePanel").classList.toggle("hidden",!isCash);
+ if(!isCash)return;
+ const total=getCartTotal(), received=Number($("cashReceived").value);
+ const entered=$("cashReceived").value.trim()!=="" && Number.isFinite(received);
+ const diff=Math.round((received-total)*100)/100;
+ const panel=$("changePanel");
+ if(!entered){panel.classList.remove("underpaid");$("changeLabel").textContent="Change to give customer";$("changeValue").textContent=money(0);$("changeHelp").textContent="Sale total: "+money(total)+". Enter the cash received.";return;}
+ if(diff<0){panel.classList.add("underpaid");$("changeLabel").textContent="BALANCE STILL NEEDED";$("changeValue").textContent=money(Math.abs(diff));$("changeHelp").textContent="Cash received is less than the sale total. The sale cannot be completed.";}
+ else{panel.classList.remove("underpaid");$("changeLabel").textContent="CHANGE TO GIVE CUSTOMER";$("changeValue").textContent=money(diff);$("changeHelp").textContent="Sale total: "+money(total)+" • Cash received: "+money(received);}
+}
+async function loadMySales(){
+ if(!currentUser||!businessId||isOwner)return;
+ $("mySalesTable").innerHTML='<p class="muted">Loading your sales…</p>';
+ const {data,error}=await db.rpc("kpoint_my_sales_receipts",{p_business_id:businessId,p_limit:200});
+ if(error)throw new Error("Could not load your receipts: "+errText(error));
+ cachedMySales=data||[];renderMySales();
+}
+function renderMySales(){
+ const q=$("mySalesSearch").value.trim().toLowerCase();
+ const rows=cachedMySales.filter(x=>!q||String(x.receipt_number||"").toLowerCase().includes(q)||JSON.stringify(x.items||[]).toLowerCase().includes(q));
+ $("mySalesTable").innerHTML=rows.length?'<table><thead><tr><th>Date</th><th>Receipt</th><th>Total</th><th>Payment</th><th>Action</th></tr></thead><tbody>'+rows.map(x=>'<tr><td>'+esc(x.sale_date?new Date(x.sale_date).toLocaleString():"—")+'</td><td>'+esc(x.receipt_number||x.sale_id)+'</td><td>'+money(x.sale_total)+'</td><td>'+esc(String(x.payment_method||"—").replace(/_/g," ").toUpperCase())+'</td><td><button type="button" class="my-receipt-btn" data-sale-id="'+esc(x.sale_id)+'" style="padding:7px 10px">View receipt</button></td></tr>').join("")+'</tbody></table>':'<p class="muted">No matching sales found. Refresh after completing a sale.</p>';
+}
+$("mySalesTable").addEventListener("click",event=>{
+ const btn=event.target.closest(".my-receipt-btn");if(!btn)return;
+ const sale=cachedMySales.find(x=>x.sale_id===btn.dataset.saleId);if(!sale)return;
+ const items=Array.isArray(sale.items)?sale.items:[];const payments=Array.isArray(sale.payments)?sale.payments:[];
+ $("receiptTitle").textContent="Receipt "+(sale.receipt_number||sale.sale_id);
+ $("receiptSubtitle").textContent="Your recorded sale • customer copy";
+ $("receiptMeta").innerHTML='<div><strong>Date & time</strong><br>'+esc(sale.sale_date?new Date(sale.sale_date).toLocaleString():"—")+'</div><div><strong>Branch</strong><br>'+esc(sale.shop_name||"—")+'</div><div><strong>Payment method</strong><br>'+esc(String(sale.payment_method||"—").replace(/_/g," ").toUpperCase())+'</div><div><strong>Receipt number</strong><br>'+esc(sale.receipt_number||sale.sale_id)+'</div>'+(sale.cash_received!==null&&sale.cash_received!==undefined?'<div><strong>Cash received</strong><br>'+money(sale.cash_received)+'</div><div><strong>Change given</strong><br>'+money(sale.change_given)+'</div>':'');
+ $("receiptItems").innerHTML=items.length?'<table><thead><tr><th>Product</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>'+items.map(i=>'<tr><td>'+esc(i.product_name||"Product")+'</td><td>'+esc(i.quantity)+'</td><td>'+money(i.unit_price)+'</td><td>'+money(i.line_total)+'</td></tr>').join("")+'</tbody></table>':'<p class="muted">No item lines were returned for this receipt.</p>';
+ $("receiptTotal").textContent="TOTAL: "+money(sale.sale_total);
+ $("receiptModal").classList.remove("hidden");
+});
+$("refreshMySalesBtn").addEventListener("click",async()=>{const b=$("refreshMySalesBtn");b.disabled=true;try{await loadMySales();setStatus("Your sales and receipts have been refreshed.","ok");}catch(e){setStatus(errText(e),"err");}finally{b.disabled=false;}});
+$("mySalesSearch").addEventListener("input",renderMySales);
+$("paymentMethod").addEventListener("change",updateCashCalculator);
+$("cashReceived").addEventListener("input",updateCashCalculator);
+
+$("refreshReportBtn").addEventListener("click",async()=>{const b=$("refreshReportBtn");b.disabled=true;try{await loadOwnerData();setStatus("Sales and expenses report refreshed from Supabase.","ok");}catch(e){setStatus(errText(e),"err");}finally{b.disabled=false;}});
+$("ownerReportsCard").addEventListener("click",async event=>{
+ const viewBtn=event.target.closest(".view-receipt-btn");
+ if(viewBtn){
+  const saleId=viewBtn.dataset.saleId;
+  const sale=cachedSalesReport.find(x=>x.sale_id===saleId);
+  if(!saleId||!sale){setStatus("Could not identify this sale. Refresh the report and try again.","err");return;}
+  viewBtn.disabled=true;
+  $("receiptTitle").textContent="Receipt "+(sale.receipt_number||sale.sale_id);
+  $("receiptSubtitle").textContent="Products and quantities sold";
+  $("receiptMeta").innerHTML='<div><strong>Date</strong><br>'+esc(sale.sale_date?new Date(sale.sale_date).toLocaleString():"—")+'</div><div><strong>Branch</strong><br>'+esc(sale.shop_name||"Branch not recorded")+'</div><div><strong>Status</strong><br>'+esc(sale.status||"completed")+'</div><div><strong>Receipt number</strong><br>'+esc(sale.receipt_number||sale.sale_id)+'</div>';
+  $("receiptItems").innerHTML='<p class="muted">Loading items…</p>';
+  $("receiptTotal").textContent="Total: "+money(sale.sale_total);
+  $("receiptModal").classList.remove("hidden");
+  try{
+   const {data,error}=await db.from("sale_items").select("product_name,quantity,unit_price,line_total").eq("business_id",businessId).eq("sale_id",saleId);
+   if(error)throw error;
+   const items=data||[];
+   $("receiptItems").innerHTML=items.length?'<table><thead><tr><th>Product</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>'+items.map(i=>'<tr><td>'+esc(i.product_name||"Product")+'</td><td>'+esc(i.quantity)+'</td><td>'+money(i.unit_price)+'</td><td>'+money(i.line_total)+'</td></tr>').join("")+'</tbody></table>':'<p class="muted">No item lines were returned for this receipt.</p>';
+  }catch(err){$("receiptItems").innerHTML='<p class="status err">Could not load receipt items: '+esc(errText(err))+'. Check sale_items read permissions in Supabase.</p>';}
+  finally{viewBtn.disabled=false;}
+  return;
+ }
+ const btn=event.target.closest(".void-sale-btn");if(!btn)return;
+ if(!currentUser||!isOwner){setStatus("Only the business owner can void a sale.","err");return;}
+ const saleId=btn.dataset.saleId;if(!saleId){setStatus("This report row has no sale ID and cannot be safely voided.","err");return;}
+ if(!confirm("Void sale "+(btn.dataset.receipt||saleId)+"? This requires the secure Supabase kpoint_void_sale function to mark the sale cancelled and restore stock."))return;
+ btn.disabled=true;setStatus("Deleting sale and correcting stock…","info");
+ try{
+  const {data,error}=await db.rpc("kpoint_void_sale",{p_business_id:businessId,p_sale_id:saleId});
+  if(error)throw new Error("No sale was changed: "+errText(error)+". Install and verify the kpoint_void_sale database function first.");
+  if(data&&data.ok===false)throw new Error(data.message||"The database did not confirm the void.");
+  await loadProducts();await loadOwnerData();setStatus("Sale deleted from the active report and stock restored.","ok");
+ }catch(e){setStatus(errText(e),"err");btn.disabled=false;}
+});
+
+
+$("closeReceiptBtn").addEventListener("click",()=>$("receiptModal").classList.add("hidden"));
+$("receiptModal").addEventListener("click",e=>{if(e.target.id==="receiptModal")$("receiptModal").classList.add("hidden");});
+$("printReceiptBtn").addEventListener("click",()=>{
+ const panel=$("receiptModal").querySelector(".receipt-panel");
+ if(!panel)return;
+ const w=window.open("","_blank","width=700,height=800");
+ if(!w){setStatus("Allow pop-ups to print the receipt, or use your browser's Share/Print menu.","err");return;}
+ w.document.write('<!doctype html><html><head><title>'+esc($("receiptTitle").textContent)+'</title><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{font:14px Arial,sans-serif;padding:18px;color:#111}h2{margin:0}table{border-collapse:collapse;width:100%;margin-top:16px}th,td{border-bottom:1px solid #ddd;padding:8px;text-align:left}th{background:#f3f4f6}.receipt-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0}.receipt-meta div{padding:8px;background:#f6f6f6}.receipt-total{text-align:right;font-size:18px;font-weight:bold;margin-top:16px}.actions{display:none}</style></head><body>'+panel.innerHTML+'</body></html>');
+ w.document.close();w.focus();setTimeout(()=>w.print(),300);
+});
+
+$("expenseForm").addEventListener("submit",async e=>{
+  e.preventDefault();if(!currentUser||!isOwner||!businessId)return setStatus("Only the owner account can record business expenses.","err");
+  const amount=Number($("expenseAmount").value);if(!Number.isFinite(amount)||amount<=0)return setStatus("Enter an expense amount greater than zero.","err");
+  const btn=$("saveExpenseBtn");btn.disabled=true;setStatus("Saving business expense…","info");
+  try{
+    const row={business_id:businessId,description:$("expenseDescription").value.trim(),category:$("expenseCategory").value,amount,expense_date:$("expenseDate").value,notes:$("expenseNotes").value.trim()||null,recorded_by:currentUser.id};
+    if(!row.description||!row.expense_date)throw new Error("Enter an expense description and date.");
+    const {error}=await db.from("business_expenses").insert(row);if(error)throw new Error("Expense was not saved: "+errText(error));
+    const keepDate=$("expenseDate").value;e.target.reset();$("expenseDate").value=keepDate;await loadOwnerData();setStatus("Business expense saved.","ok");
+  }catch(err){setStatus(errText(err),"err");}finally{btn.disabled=false;}
+});
+$("refreshOwnerBtn").addEventListener("click",async()=>{try{await loadOwnerData();setStatus("Expenses and sales report refreshed.","ok");}catch(e){setStatus(errText(e),"err");}});
+$("exportReportBtn").addEventListener("click",()=>{
+  if(!cachedSalesReport.length)return setStatus("There are no sales to export yet.","info");
+  const rows=[["Date","Branch","Receipt","Status","Sale total ZMW","Estimated stock cost ZMW","Estimated gross profit ZMW"],...cachedSalesReport.map(x=>[x.sale_date||"",x.shop_name||"Branch not recorded",x.receipt_number||x.sale_id||"",x.status||"completed",Number(x.sale_total||0),Number(x.estimated_cost||0),Number(x.estimated_profit||0)])];
+  const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="kpoint-combined-branch-sales-report.csv";a.click();URL.revokeObjectURL(url);
+});
+
+$("loginForm").addEventListener("submit",async e=>{
+ e.preventDefault(); $("loginBtn").disabled=true; setStatus("Signing in and checking your business membership…");
+ try{
+  const {data,error}=await db.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
+  if(error) throw error;
+  currentUser=data.user;
+  await resolveBusiness();
+  $("loginCard").classList.add("hidden"); $("productSection").classList.remove("hidden"); $("signOutBtn").classList.remove("hidden");
+  await loadProducts(); startProductRealtime(); if(isOwner) await loadOwnerData(); else await loadMySales(); updateCashCalculator();
+  setStatus("Connected successfully. Products load from Supabase and live stock updates are enabled when the database realtime feed is available.","ok");
+ }catch(e){setStatus(errText(e),"err");}
+ finally{$("loginBtn").disabled=false;}
+});
+async function uploadProductImage(productId, file){
+  if(!file) return null;
+  if(file.size > 2*1024*1024) throw new Error("Product photo is too large. Please choose an image under 2 MB.");
+  if(!file.type.startsWith("image/")) throw new Error("Please choose an image file.");
+  const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";
+  const path=businessId+"/"+selectedShopId+"/"+productId+"."+ext;
+  const {error}=await db.storage.from("product-images").upload(path,file,{contentType:file.type,upsert:true});
+  if(error) throw new Error("Product was saved, but the photo could not be uploaded: "+errText(error));
+  const {data}=db.storage.from("product-images").getPublicUrl(path);
+  return data.publicUrl;
+}
+async function deleteProductImage(product){
+  if(!product?.image_url) return;
+  const marker="/product-images/";
+  const i=product.image_url.indexOf(marker);
+  if(i<0) return;
+  const path=product.image_url.slice(i+marker.length).split("?")[0];
+  try{await db.storage.from("product-images").remove([path]);}catch(e){console.warn("Product image cleanup failed",e);}
+}
+
+$("productForm").addEventListener("submit",async e=>{
+ e.preventDefault(); if(!currentUser||!businessId)return setStatus("Please sign in first.","err");
+ const btn=$("saveProductBtn"); btn.disabled=true; setStatus(editingProductId?"Updating product…":"Saving product…");
+ const product={
+  business_id:businessId,
+  shop_id:$("productBranch").value,
+  name:$("name").value.trim(),
+  barcode:$("barcode").value.trim()||null,
+  product_code:$("productCode").value.trim()||null,
+  category:$("category").value.trim()||null,
+  quantity:Number($("quantity").value),
+  retail_price:Number($("retailPrice").value),
+  wholesale_price:Number($("wholesalePrice").value)
+ };
+ try{
+  if(!isOwner) throw new Error("Only the business owner can add or edit products.");
+  if(!product.shop_id || !shopRows.some(sh=>sh.shop_id===product.shop_id)) throw new Error("Choose a branch you have access to.");
+  if(product.shop_id!==selectedShopId) throw new Error("The product branch must match the active branch. Select that branch at the top first.");
+  if(!product.name) throw new Error("Enter a product name.");
+  if(!Number.isInteger(product.quantity)||product.quantity<0) throw new Error("Stock quantity must be a whole number, zero or higher.");
+  if(product.retail_price<0||product.wholesale_price<0) throw new Error("Selling prices cannot be negative.");
+
+  let savedProduct;
+
+  if(editingProductId){
+    const existing = productRows.find(row=>row.id===editingProductId);
+    if(!existing) throw new Error("The product is no longer in the current list. Refresh and try again.");
+
+    const {data,error}=await db.from("products")
+      .update({
+        shop_id:product.shop_id,
+        name:product.name,
+        barcode:product.barcode,
+        product_code:product.product_code,
+        category:product.category,
+        quantity:product.quantity,
+        retail_price:product.retail_price,
+        wholesale_price:product.wholesale_price
+      })
+      .eq("id",editingProductId)
+      .eq("business_id",businessId)
+      .eq("shop_id",existing.shop_id)
+      .select("id,business_id,shop_id,name,barcode,product_code,category,quantity,retail_price,wholesale_price,image_url,created_at")
+      .single();
+
+    if(error) throw new Error("Product could not be updated: "+errText(error));
+    savedProduct=data;
+
+    const imageFile=$("productImage").files?.[0];
+    if(imageFile){
+      const imageUrl=await uploadProductImage(savedProduct.id,imageFile);
+      const {error:imageDbError}=await db.from("products")
+        .update({image_url:imageUrl})
+        .eq("id",savedProduct.id)
+        .eq("business_id",businessId);
+      if(imageDbError) throw new Error("Product details were updated, but the new photo link could not be saved: "+errText(imageDbError));
+    }
+  }else{
+    const {data:inserted,error}=await db.from("products")
+      .insert(product)
+      .select("id,business_id,shop_id,name,barcode,product_code,category,quantity,retail_price,wholesale_price,image_url,created_at")
+      .single();
+    if(error) throw new Error("Product was not saved: "+errText(error));
+    savedProduct=inserted;
+
+    const imageFile=$("productImage").files?.[0];
+    if(imageFile){
+      const imageUrl=await uploadProductImage(savedProduct.id,imageFile);
+      const {error:imageDbError}=await db.from("products").update({image_url:imageUrl}).eq("id",savedProduct.id).eq("business_id",businessId).eq("shop_id",selectedShopId);
+      if(imageDbError) throw new Error("Product was saved and the photo uploaded, but the photo link could not be saved: "+errText(imageDbError));
+    }
+  }
+
+  const cost=Number($("buyingPrice").value);
+  if(!Number.isFinite(cost)||cost<0) throw new Error("Product saved, but buying price is missing or invalid. Add its cost from the owner account.");
+  const {error:costError}=await db.from("product_costs")
+    .upsert({product_id:savedProduct.id,business_id:businessId,buying_price:cost,updated_at:new Date().toISOString()},{onConflict:"product_id"});
+  if(costError) throw new Error("Product was saved, but its buying cost could not be saved: "+errText(costError)+". Do not assume profit reporting is ready.");
+
+  const wasEditing=!!editingProductId;
+  editingProductId=null;
+  $("addProductCard").querySelector("h2").textContent="Add a product";
+  $("saveProductBtn").textContent="Save product";
+  e.target.reset(); $("quantity").value="0"; $("productImage").value=""; $("productBranch").value=selectedShopId||"";
+  await loadProducts();
+  setStatus(wasEditing?"Product updated in the K-Point POS cloud database.":"Product saved to your K-Point POS cloud database.","ok");
+ }catch(e){setStatus(errText(e),"err");}
+ finally{btn.disabled=false;}
+});
+
+$("refreshBtn").addEventListener("click",async()=>{try{await loadProducts();setStatus("Product list refreshed.","ok")}catch(e){setStatus(errText(e),"err")}});
+$("branchPick").addEventListener("change",async()=>{const next=$("branchPick").value;if(!shopRows.some(sh=>sh.shop_id===next))return;selectedShopId=next;$("productBranch").value=next;cart=[];renderCart();try{await loadProducts();setStatus("Active branch changed to "+(shopRows.find(sh=>sh.shop_id===next)?.shop_name||"selected branch")+". Cart cleared to prevent cross-branch checkout.","ok");}catch(e){setStatus(errText(e),"err");}});
+$("productBranch").addEventListener("change",()=>{if($("productBranch").value!==selectedShopId){$("productBranch").value=selectedShopId;setStatus("Select the active branch at the top before adding a product.","info");}});
+$("signOutBtn").addEventListener("click",async()=>{if(productChannel){await db.removeChannel(productChannel);productChannel=null;}await db.auth.signOut();currentUser=null;businessId=null;isOwner=false;productRows=[];$("productSection").classList.add("hidden");$("loginCard").classList.remove("hidden");$("signOutBtn").classList.add("hidden");$("roleBadge").classList.add("hidden");setStatus("Signed out.","info");});
+let cart = [];
+function refreshReceivePicker(){
+  const select=$("receiveProduct");
+  if(!select) return;
+  const previous=select.value;
+  select.innerHTML='<option value="">Choose a product…</option>'+productRows.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+' — stock '+Number(p.quantity||0)+'</option>').join("");
+  if(productRows.some(p=>p.id===previous)) select.value=previous;
+  const active=shopRows.find(sh=>sh.shop_id===selectedShopId);
+  $("receiveBranch").value=active?.shop_name||"Choose active branch";
+}
+function updateReceiveEstimate(){
+  const qty=Number($("receiveQty").value||0), purchase=Number($("receivePurchaseTotal").value||0), shipping=Number($("receiveShippingTotal").value||0), other=Number($("receiveOtherCost").value||0);
+  const total=purchase+shipping+other;
+  $("receiveLandedTotal").textContent=money(total);
+  $("receiveLandedUnit").textContent=money(qty>0?total/qty:0);
+}
+let activeProductCategory = "all";
+function refreshPicker(){
+ const q=$("checkoutSearch").value.trim().toLowerCase();
+ const categories=[...new Set(productRows.map(p=>String(p.category||"").trim()||"Other"))].sort((a,b)=>a.localeCompare(b));
+ const catSelect=$("checkoutCategory");
+ if(catSelect){
+   const previous=catSelect.value||activeProductCategory;
+   catSelect.innerHTML='<option value="all">All categories</option>'+categories.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('');
+   catSelect.value=categories.includes(previous)?previous:"all";
+   activeProductCategory=catSelect.value;
+ }
+ const filtered=productRows.filter(p=>(activeProductCategory==="all"||(String(p.category||"").trim()||"Other")===activeProductCategory)&&[p.name,p.barcode,p.product_code,p.category].some(v=>String(v||"").toLowerCase().includes(q)));
+ const list=filtered.slice().sort((a,b)=>String(a.category||"Other").localeCompare(String(b.category||"Other"))||String(a.name||"").localeCompare(String(b.name||"")));
+ $("productPick").innerHTML='<option value="">Choose a product…</option>'+list.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+' — stock '+Number(p.quantity||0)+' — '+money($("saleType").value==="wholesale"?p.wholesale_price:p.retail_price)+'</option>').join("");
+ const buttons=$("categoryButtons");
+ if(buttons){
+   buttons.innerHTML='<button type="button" data-category="all" class="'+(activeProductCategory==="all"?'active':'')+'">All</button>'+categories.map(c=>'<button type="button" data-category="'+esc(c)+'" class="'+(activeProductCategory===c?'active':'')+'">'+esc(c)+'</button>').join('');
+   buttons.querySelectorAll('[data-category]').forEach(btn=>btn.addEventListener('click',()=>{activeProductCategory=btn.dataset.category; if(catSelect)catSelect.value=activeProductCategory;refreshPicker();}));
+ }
+ const grid=$("productGrid");
+ if(!grid)return;
+ grid.innerHTML=list.length?list.map(p=>'<div class="product-card" data-product-card="'+esc(p.id)+'" title="Tap photo/name or Add to cart">'+(p.image_url?'<img data-pick-product="'+esc(p.id)+'" src="'+esc(p.image_url)+'" alt="'+esc(p.name)+'">':'<div data-pick-product="'+esc(p.id)+'" style="width:76px;height:76px;border-radius:10px;background:#eef2f7;display:grid;place-items:center;margin:auto;font-size:11px;color:#65748b">No photo</div>')+'<div class="pc-name" data-pick-product="'+esc(p.id)+'">'+esc(p.name)+'</div><div class="pc-stock">'+esc(p.category||"Other")+' · Stock: '+Number(p.quantity||0)+'</div><button type="button" class="pc-add" data-add-product="'+esc(p.id)+'">ADD TO CART +</button></div>').join(''):'<p class="muted">No matching products in this category.</p>';
+ grid.querySelectorAll('[data-pick-product]').forEach(el=>el.addEventListener('click',()=>quickAddProduct(el.dataset.pickProduct)));
+ grid.querySelectorAll('[data-add-product]').forEach(btn=>btn.addEventListener('click',()=>quickAddProduct(btn.dataset.addProduct)));
+}
+function quickAddProduct(productId){
+ const p=productRows.find(row=>String(row.id)===String(productId));
+ if(!p){setStatus("Product not found. Refresh the product list.","err");return;}
+ // Keep the normal product selector in sync, but add directly instead of
+ // relying on a synthetic button click (which can fail on some mobile browsers).
+ const pick=$("productPick");
+ if(pick && [...pick.options].some(option=>option.value===String(p.id))) pick.value=String(p.id);
+ if(pick) pick.dispatchEvent(new Event("change",{bubbles:true}));
+ addProductToCart(p.id);
+}
+
+function renderCart(){
+ $("cartTotal").textContent=money(cart.reduce((a,x)=>a+x.price*x.quantity,0));
+ $("cartHint").textContent=cart.length?cart.reduce((a,x)=>a+x.quantity,0)+" item units":"No items added";
+ if(!cart.length){$("cartTable").innerHTML='<p class="muted">Cart is empty.</p>';updateCashCalculator();return;}
+ $("cartTable").innerHTML='<table><thead><tr><th>Product</th><th>Qty</th><th>Unit price</th><th>Subtotal</th><th></th></tr></thead><tbody>'+cart.map((x,i)=>'<tr><td>'+esc(x.name)+'</td><td>'+x.quantity+'</td><td>'+money(x.price)+'</td><td>'+money(x.price*x.quantity)+'</td><td><button type="button" class="secondary" data-remove="'+i+'">Remove</button></td></tr>').join("")+'</tbody></table>';
+ $("cartTable").querySelectorAll("[data-remove]").forEach(b=>b.addEventListener("click",()=>{cart.splice(Number(b.dataset.remove),1);renderCart()}));
+ updateCashCalculator();
+}
+$("checkoutSearch").addEventListener("input",refreshPicker);
+$("checkoutCategory").addEventListener("change",()=>{activeProductCategory=$("checkoutCategory").value||"all";refreshPicker();});
+$("saleType").addEventListener("change",refreshPicker);
+$("scanInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();const code=e.target.value.trim();const p=productRows.find(p=>String(p.barcode||"")===code||String(p.product_code||"")===code);if(p){$("productPick").value=p.id;$("saleQty").focus();setStatus("Found "+p.name+" from barcode/code. Set quantity and add to cart.","ok");}else setStatus("No product matched that barcode/code. Add the barcode to the product record first.","err");e.target.select();}});
+$("productPick").addEventListener("change",()=>{const p=productRows.find(p=>p.id===$("productPick").value);if(p&&p.barcode)$("scanInput").value=p.barcode;});
+function addProductToCart(productId){
+ const p=productRows.find(row=>String(row.id)===String(productId));
+ const qty=Number($("saleQty").value), type=$("saleType").value;
+ if(!p){setStatus("Choose a product first.","err");return false;}
+ if(!Number.isInteger(qty)||qty<1){setStatus("Enter a whole-number quantity of at least 1.","err");return false;}
+ if(qty>Number(p.quantity||0)){setStatus("The requested quantity is greater than the displayed stock. No sale was recorded.","err");return false;}
+ const price=Number(type==="wholesale"?p.wholesale_price:p.retail_price);
+ if(!Number.isFinite(price)||price<0){setStatus("This product has an invalid price. Edit the product details first.","err");return false;}
+ const existing=cart.find(x=>String(x.id)===String(p.id)&&x.type===type);
+ const totalQty=qty+(existing?.quantity||0);
+ if(totalQty>Number(p.quantity||0)){setStatus("Cart quantity would exceed the displayed stock.","err");return false;}
+ if(existing)existing.quantity=totalQty;else cart.push({id:p.id,name:p.name,quantity:qty,price,type});
+ renderCart();setStatus("Added "+p.name+" to the cart. Stock changes only after you record the paid sale.","ok");
+ return true;
+}
+$("addCartBtn").addEventListener("click",()=>addProductToCart($("productPick").value));
+$("clearCartBtn").addEventListener("click",()=>{cart=[];renderCart();});
+["receiveQty","receivePurchaseTotal","receiveShippingTotal","receiveOtherCost"].forEach(id=>$(id).addEventListener("input",updateReceiveEstimate));
+$("resetReceiveBtn").addEventListener("click",()=>{$("stockReceivingForm").reset();$("receiveShippingTotal").value="0";$("receiveOtherCost").value="0";updateReceiveEstimate();refreshReceivePicker();});
+$("stockReceivingForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(!currentUser||!businessId)return setStatus("Please sign in first.","err");
+  const productId=$("receiveProduct").value, qty=Number($("receiveQty").value), purchase=Number($("receivePurchaseTotal").value), shipping=Number($("receiveShippingTotal").value||0), other=Number($("receiveOtherCost").value||0), reference=$("receiveReference").value.trim()||null;
+  const product=productRows.find(p=>p.id===productId);
+  if(!product)return setStatus("Choose a product from the active branch.","err");
+  if(!Number.isInteger(qty)||qty<1)return setStatus("Quantity received must be a whole number greater than zero.","err");
+  if(!Number.isFinite(purchase)||purchase<0||!Number.isFinite(shipping)||shipping<0||!Number.isFinite(other)||other<0)return setStatus("Costs must be valid numbers and cannot be negative.","err");
+  if(product.shop_id!==selectedShopId)return setStatus("That product is not in the active branch. Change branch and try again.","err");
+  const landed=purchase+shipping+other;
+  if(!confirm("Record "+qty+" units of "+product.name+" for "+(shopRows.find(sh=>sh.shop_id===selectedShopId)?.shop_name||"this branch")+"? Total landed cost: "+money(landed)+". Stock will increase."))return;
+  const btn=$("receiveStockBtn");btn.disabled=true;setStatus("Recording received stock securely…","info");
+  try{
+    const {data,error}=await db.rpc("kpoint_receive_stock",{p_business_id:businessId,p_product_id:productId,p_quantity:qty,p_purchase_total:purchase,p_shipping_total:shipping,p_other_cost:other,p_reference:reference});
+    if(error)throw new Error("Stock was not recorded: "+errText(error)+". Check that the kpoint_receive_stock SQL function exists and your account can access this branch.");
+    await loadProducts();
+    e.target.reset();$("receiveShippingTotal").value="0";$("receiveOtherCost").value="0";updateReceiveEstimate();refreshReceivePicker();
+    const result=(data&&typeof data==="object")?data:{};
+    setStatus("Stock received successfully. "+qty+" units of "+product.name+" added. Total landed cost: "+money(landed)+"; estimated cost per unit: "+money(landed/qty)+". "+(result.message||"Stock list refreshed from Supabase."),"ok");
+  }catch(err){setStatus(errText(err),"err");}
+  finally{btn.disabled=false;}
+});
+$("completeSaleBtn").addEventListener("click",async()=>{
+ const btn=$("completeSaleBtn");
+ if(!currentUser||!businessId)return setStatus("Please sign in first.","err");
+ if(!cart.length)return setStatus("Add at least one product to the cart.","err");
+ const total=getCartTotal();
+ const method=$("paymentMethod").value;
+ const cashReceived=method==="cash"?Number($("cashReceived").value):null;
+ if(method==="cash"&&(!$("cashReceived").value.trim()||!Number.isFinite(cashReceived)||cashReceived<total))return setStatus("Enter the cash received. It must be at least "+money(total)+" before you can complete this cash sale.","err");
+ const changeGiven=method==="cash"?Math.round((cashReceived-total)*100)/100:0;
+ if(!confirm("Record this fully paid sale for "+money(total)+" using "+$("paymentMethod").selectedOptions[0].text+(method==="cash"?"? Cash received: "+money(cashReceived)+". Change to give: "+money(changeGiven)+". Stock will be deducted.":"? Stock will be deducted.")))return;
+ btn.disabled=true;setStatus("Recording sale securely and updating stock…","info");
+ try{
+  const payload={p_business_id:businessId,p_items:cart.map(x=>({product_id:x.id,quantity:x.quantity,sale_type:x.type})),p_payments:[{method,amount:total,shop_id:selectedShopId,cash_received:cashReceived,change_given:changeGiven}],p_customer_id:null,p_discount:0,p_idempotency_key:crypto.randomUUID()};
+  const {data,error}=await db.rpc("kpoint_checkout",payload);
+  if(error)throw new Error("Sale not recorded: "+errText(error)+". Check that the checkout SQL setup was run successfully.");
+  if(!data?.ok)throw new Error(data?.message||"The database did not confirm the sale.");
+  cart=[];renderCart();$("cashReceived").value="";updateCashCalculator();await loadProducts();if(!isOwner)await loadMySales();
+  setStatus((data.duplicate?"This sale was already recorded. ":"Sale recorded successfully. ")+"Receipt: "+(data.receipt_number||"already recorded")+". Total: "+money(data.total??total)+(method==="cash"?". Cash received: "+money(cashReceived)+"; change given: "+money(changeGiven)+".":".")+" Stock has been refreshed from the cloud.","ok");
+ }catch(e){setStatus(errText(e),"err");}
+ finally{btn.disabled=false;}
+});
+const oldLoadProducts=loadProducts;
+loadProducts=async function(){await oldLoadProducts();refreshPicker();refreshReceivePicker();};
+(async()=>{try{const {data:{session}}=await db.auth.getSession();if(session){currentUser=session.user;await resolveBusiness();$("loginCard").classList.add("hidden");$("productSection").classList.remove("hidden");$("signOutBtn").classList.remove("hidden");await loadProducts();startProductRealtime();if(isOwner)await loadOwnerData();else await loadMySales();updateCashCalculator();setStatus("Your existing session is connected to Supabase. Live product updates are enabled when the database realtime feed is available.","ok");}}catch(e){setStatus("Please sign in. "+errText(e),"info");}})();
+</script>
+</body>
+</html>
